@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ""
+  volumeName: pv-ollama-models
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  labels:
+    app: ollama
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 11434
+      targetPort: 11434
+  selector:
+    app: ollama
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  labels:
+    app: ollama
+  annotations:
+    note: |
+      已遷移至 VM 直接安裝，消除 K8s 雙層虛擬化 overhead。
+      遷移腳本: bash /vagrant/scripts/setup/install-ollama-on-vm.sh
+      若需復原 K8s 模式：將 replicas 改回 1
+spec:
+  replicas: 0  # VM 直接安裝模式：0 副本。需 K8s 模式時改為 1
+  selector:
+    matchLabels:
+      app: ollama
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 11434
+          env:
+            - name: OLLAMA_MODELS
+              value: /models
+            # 限制最大並發數，保護記憶體
+            - name: OLLAMA_MAX_LOADED_MODELS
+              value: "1"
+            - name: OLLAMA_NUM_PARALLEL
+              value: "1"
+            # 明確設定 CPU 執行緒數，充分利用 VM 4 核心
+            - name: OLLAMA_NUM_THREAD
+              value: "4"
+          resources:
+            requests:
+              memory: "1229Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              # CPU 不設上限，讓 Ollama 推理時可完整使用 VM 可用核心
+              # 設定上限會導致 cgroup CPU throttling，嚴重拖慢 LLM 推理速度
+          volumeMounts:
+            - name: ollama-models
+              mountPath: /models
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 20
+            failureThreshold: 6
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 60
+            # 每120秒檢查一次，推理時 Ollama 可能無法立即回應
+            periodSeconds: 120
+            timeoutSeconds: 30
+            # 15次失敗才重啟 = 30分鐘的容忍時間，足夠長推理完成
+            failureThreshold: 15
+      volumes:
+        - name: ollama-models
+          persistentVolumeClaim:
+            claimName: ollama-models

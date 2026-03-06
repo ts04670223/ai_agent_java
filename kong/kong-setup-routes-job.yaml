@@ -1,0 +1,125 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-setup-routes
+  labels:
+    app: kong-setup
+spec:
+  # 允許重複執行（如果失敗）
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: kong-setup
+    spec:
+      # 等待 Kong 就緒後才執行
+      initContainers:
+        - name: wait-for-kong
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "等待 Kong Admin API 就緒..."
+              until nc -zv kong 8003; do
+                echo "Kong 尚未就緒，等待 5 秒..."
+                sleep 5
+              done
+              echo "Kong 已就緒，等待 10 秒確保完全啟動..."
+              sleep 10
+      containers:
+        - name: setup-routes
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              
+              KONG_ADMIN_URL="http://kong:8003"
+              # App 直接在 VM 上以 mvn spring-boot:run 執行，不在 K8s Pod 內
+              # 從 K8s Pod 內用 Node IP 192.168.10.10 連到 VM 上的 app
+              APP_SERVICE_URL="http://192.168.10.10:8080"
+              
+              echo "================================"
+              echo "開始配置 Kong 路由"
+              echo "================================"
+              
+              # 檢查 Service 是否已存在
+              SERVICE_EXISTS=$(curl -s ${KONG_ADMIN_URL}/services/spring-boot-app 2>&1 | grep -o '"name":"spring-boot-app"' | wc -l)
+              
+              if [ "$SERVICE_EXISTS" -eq "0" ]; then
+                echo "創建 Service: spring-boot-app"
+                # 改用明確的參數而不是 url，避免解析問題
+                # LLM 推理耗時，connect/write/read timeout 設為 300 秒（預設 60 秒會導致 LLM 超時）
+                curl -i -X POST ${KONG_ADMIN_URL}/services \
+                  --data name=spring-boot-app \
+                  --data protocol=http \
+                  --data host=192.168.10.10 \
+                  --data port=8080 \
+                  --data connect_timeout=300000 \
+                  --data write_timeout=300000 \
+                  --data read_timeout=300000
+              else
+                echo "Service 'spring-boot-app' 已存在，跳過創建"
+                
+                # 強制更新 host 及 timeout 以防配置錯誤
+                echo "確保 Service host 及 timeout 配置正確..."
+                curl -i -X PATCH ${KONG_ADMIN_URL}/services/spring-boot-app \
+                  --data host=192.168.10.10 \
+                  --data connect_timeout=300000 \
+                  --data write_timeout=300000 \
+                  --data read_timeout=300000
+              fi
+              
+              echo ""
+              
+              # 檢查 Route 是否已存在
+              ROUTE_EXISTS=$(curl -s ${KONG_ADMIN_URL}/routes 2>&1 | grep -o '"name":"api-route"' | wc -l)
+              
+              if [ "$ROUTE_EXISTS" -eq "0" ]; then
+                echo "創建 Route: api-route"
+                curl -i -X POST ${KONG_ADMIN_URL}/services/spring-boot-app/routes \
+                  --data 'name=api-route' \
+                  --data 'paths[]=/api' \
+                  --data 'strip_path=false'
+              else
+                echo "Route 'api-route' 已存在，跳過創建"
+                # 強制更新 paths 以確保為 /api (修正舊配置 /api/products)
+                echo "確保 Route paths 配置正確 (/api)..."
+                curl -i -X PATCH ${KONG_ADMIN_URL}/routes/api-route \
+                  --data 'paths[]=/api'
+              fi
+              
+              echo ""
+              echo "================================"
+              echo "驗證配置"
+              echo "================================"
+              
+              # 列出所有 Services
+              echo "Services:"
+              curl -s ${KONG_ADMIN_URL}/services | grep -o '"name":"[^"]*"' || echo "無"
+              
+              echo ""
+              
+              # 列出所有 Routes
+              echo "Routes:"
+              curl -s ${KONG_ADMIN_URL}/routes | grep -o '"name":"[^"]*"' || echo "無"
+              
+              echo ""
+              echo "================================"
+              echo "Kong 路由配置完成！"
+              echo "================================"
+              
+              # 測試路由
+              echo ""
+              echo "測試路由..."
+              RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://kong:8000/api/products)
+              if [ "$RESPONSE" = "200" ]; then
+                echo "✓ 路由測試成功 (HTTP $RESPONSE)"
+              else
+                echo "✗ 路由測試失敗 (HTTP $RESPONSE)"
+                echo "這可能是因為後端應用尚未就緒"
+              fi
+      restartPolicy: OnFailure

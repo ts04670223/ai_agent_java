@@ -1,0 +1,242 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": null,
+    "title": "Spring Boot - JVM 監控",
+    "tags": ["spring-boot", "jvm"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 0,
+    "refresh": "30s",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "id": 1,
+        "title": "JVM 堆記憶體使用",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "targets": [
+          {
+            "expr": "sum(jvm_memory_used_bytes{application=\"Spring Boot Demo\", area=\"heap\"}) by (application)",
+            "legendFormat": "已使用",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${DS_PROMETHEUS}"
+            }
+          },
+          {
+            "expr": "sum(jvm_memory_max_bytes{application=\"Spring Boot Demo\", area=\"heap\"}) by (application)",
+            "legendFormat": "最大值",
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${DS_PROMETHEUS}"
+            }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "lineWidth": 2,
+              "fillOpacity": 10,
+              "showPoints": "never"
+            }
+          }
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "JVM 非堆記憶體使用",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "targets": [
+          {
+            "expr": "sum(jvm_memory_used_bytes{application=\"Spring Boot Demo\", area=\"nonheap\"}) by (application)",
+            "legendFormat": "已使用",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${DS_PROMETHEUS}"
+            }
+          },
+          {
+            "expr": "sum(jvm_memory_max_bytes{application=\"Spring Boot Demo\", area=\"nonheap\"}) by (application)",
+            "legendFormat": "最大值",
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${DS_PROMETHEUS}"
+            }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "lineWidth": 2,
+              "fillOpacity": 10,
+              "showPoints": "never"
+            }
+          }
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "GC 暫停時間",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "targets": [
+          {
+            "expr": "rate(jvm_gc_pause_seconds_sum{application=\"Spring Boot Demo\"}[5m])",
+            "legendFormat": "{{action}} - {{cause}}",
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${DS_PROMETHEUS}"
+            }
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "lineWidth": 2,
+              "fillOpacity": 10,
+              "showPoints": "never"
+            }
+          }
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "執行緒數量",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "jvm_threads_live_threads{application=\"Spring Boot Demo\"}",
+            "legendFormat": "活動執行緒",
+            "refId": "A"
+          },
+          {
+            "expr": "jvm_threads_daemon_threads{application=\"Spring Boot Demo\"}",
+            "legendFormat": "守護執行緒",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "CPU 使用率",
+        "type": "gauge",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total{application=\"Spring Boot Demo\"}[5m]) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 70, "color": "yellow"},
+                {"value": 90, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "系統負載",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 18, "x": 6, "y": 16},
+        "targets": [
+          {
+            "expr": "system_cpu_usage{application=\"Spring Boot Demo\"}",
+            "legendFormat": "系統 CPU",
+            "refId": "A"
+          },
+          {
+            "expr": "process_cpu_usage{application=\"Spring Boot Demo\"}",
+            "legendFormat": "程序 CPU",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit"
+          }
+        }
+      }
+    ]
+  },
+  "overwrite": true,
+  "inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "value": "prometheus"
+    }
+  ]
+}

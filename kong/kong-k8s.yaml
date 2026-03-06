@@ -1,0 +1,302 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o kong-k8s.yaml
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: kong
+  name: kong
+spec:
+  type: NodePort
+  ports:
+    - name: "8000"
+      port: 8000
+      targetPort: 8000
+      nodePort: 30000
+    - name: "8443"
+      port: 8443
+      targetPort: 8443
+      nodePort: 30443
+    - name: "8003"
+      port: 8003
+      targetPort: 8003
+      nodePort: 30003
+    - name: "8444"
+      port: 8444
+      targetPort: 8444
+      nodePort: 30444
+    - name: "8002"
+      port: 8002
+      targetPort: 8002
+      nodePort: 30002
+    - name: "8445"
+      port: 8445
+      targetPort: 8445
+      nodePort: 30445
+  selector:
+    io.kompose.service: kong
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o kong-k8s.yaml
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: kong
+  name: kong
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: kong
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o kong-k8s.yaml
+        kompose.version: 1.34.0 (cbf2835db)
+      labels:
+        io.kompose.service: kong
+    spec:
+      initContainers:
+        # 等待資料庫就緒
+        - name: wait-for-db
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "等待 PostgreSQL 資料庫就緒..."
+              until nc -zv kong-database 5432; do
+                echo "資料庫尚未就緒，等待 2 秒後重試..."
+                sleep 2
+              done
+              echo "資料庫已就緒！"
+        # 自動執行 migrations，確保 DB schema 已是最新狀態
+        # 使用 up 取代 bootstrap：bootstrap 在 DB 已初始化時會報錯，up 是冪等的
+        - name: bootstrap-migrations
+          image: kong:latest
+          args:
+            - kong
+            - migrations
+            - up
+          env:
+            - name: KONG_DATABASE
+              value: postgres
+            - name: KONG_PG_DATABASE
+              value: kong
+            - name: KONG_PG_HOST
+              value: kong-database
+            - name: KONG_PG_PASSWORD
+              value: kongpass
+            - name: KONG_PG_USER
+              value: kong
+          volumeMounts: []
+      containers:
+        - env:
+            - name: KONG_ADMIN_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_ADMIN_GUI_LISTEN
+              value: 0.0.0.0:8002
+            - name: KONG_ADMIN_GUI_PATH
+              value: /
+            - name: KONG_ADMIN_GUI_URL
+              value: http://192.168.10.10:30002
+            - name: KONG_ADMIN_GUI_API_URL
+              value: http://192.168.10.10:30003
+            - name: KONG_ADMIN_LISTEN
+              value: 0.0.0.0:8003 reuseport backlog=16384
+            - name: KONG_DATABASE
+              value: postgres
+            - name: KONG_PG_DATABASE
+              value: kong
+            - name: KONG_PG_HOST
+              value: kong-database
+            - name: KONG_PG_PASSWORD
+              value: kongpass
+            - name: KONG_PG_USER
+              value: kong
+            - name: KONG_PROXY_ACCESS_LOG
+              value: /dev/stdout
+            - name: KONG_PROXY_ERROR_LOG
+              value: /dev/stderr
+            - name: KONG_PROXY_LISTEN
+              value: 0.0.0.0:8000 reuseport backlog=16384, 0.0.0.0:8443 http2 ssl reuseport backlog=16384
+          image: kong:latest
+          name: kong
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+            - containerPort: 8443
+              protocol: TCP
+            - containerPort: 8003
+              protocol: TCP
+            - containerPort: 8444
+              protocol: TCP
+            - containerPort: 8002
+              protocol: TCP
+            - containerPort: 8445
+              protocol: TCP
+          # 健康檢查 - 使用 TCP 檢查確保 Kong 正常運行
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          # 就緒檢查 - 使用 TCP 檢查確保 Kong 可以處理流量
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - mountPath: /home/kong/kong.yml
+              name: kong-claim0
+              readOnly: true
+      restartPolicy: Always
+      volumes:
+        - name: kong-claim0
+          hostPath:
+            path: /tmp/kong-claim0
+            type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o kong-k8s.yaml
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: kong-database
+  name: kong-database
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+  selector:
+    io.kompose.service: kong-database
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o kong-k8s.yaml
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: kong-database
+  name: kong-database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: kong-database
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o kong-k8s.yaml
+        kompose.version: 1.34.0 (cbf2835db)
+      labels:
+        io.kompose.service: kong-database
+    spec:
+      containers:
+        - env:
+            - name: POSTGRES_DB
+              value: kong
+            - name: POSTGRES_PASSWORD
+              value: kongpass
+            - name: POSTGRES_USER
+              value: kong
+          image: postgres:16
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - kong
+            failureThreshold: 5
+            periodSeconds: 30
+            timeoutSeconds: 10
+          name: kong-database
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: kong-data
+      restartPolicy: Always
+      volumes:
+        - name: kong-data
+          hostPath:
+            # 修改為持久化路徑，避免重啟後數據丟失
+            path: /var/lib/kong-data
+            type: DirectoryOrCreate
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o kong-k8s.yaml
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: kong-migrations
+  name: kong-migrations
+spec:
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o kong-k8s.yaml
+        kompose.version: 1.34.0 (cbf2835db)
+      labels:
+        io.kompose.service: kong-migrations
+    spec:
+      initContainers:
+        # 確保資料庫完全就緒後才執行遷移
+        - name: wait-for-postgres
+          image: postgres:16
+          env:
+            - name: PGPASSWORD
+              value: kongpass
+          command:
+            - sh
+            - -c
+            - |
+              echo "等待 PostgreSQL 完全就緒..."
+              until pg_isready -h kong-database -U kong -d kong; do
+                echo "PostgreSQL 尚未就緒，等待 3 秒..."
+                sleep 3
+              done
+              echo "PostgreSQL 已就緒，開始執行遷移..."
+              sleep 5
+      containers:
+        - args:
+            - kong
+            - migrations
+            - bootstrap
+          env:
+            - name: KONG_ADMIN_LISTEN
+              value: 0.0.0.0:8003
+            - name: KONG_DATABASE
+              value: postgres
+            - name: KONG_PG_DATABASE
+              value: kong
+            - name: KONG_PG_HOST
+              value: kong-database
+            - name: KONG_PG_PASSWORD
+              value: kongpass
+            - name: KONG_PG_USER
+              value: kong
+          image: kong:latest
+          name: kong-migrations
+      restartPolicy: OnFailure

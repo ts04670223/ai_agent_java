@@ -1,0 +1,66 @@
+# Maven
+target/
+!target/*.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Vagrant
+.vagrant/
+Vagrantfile
+Vagrantfile.backup
+Vagrantfile.k8s
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+
+# Scripts
+scripts/
+*.sh
+*.bat
+*.ps1
+
+# Kubernetes
+k8s-manifests/
+
+# Frontend
+frontend/
+node_modules/
+
+# Test data
+data/
+
+# Environment
+.env
+.env.local

@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fix-mysql-permissions
+spec:
+  template:
+    spec:
+      containers:
+      - name: mysql-fix
+        image: mysql:8.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # 等待 MySQL 服務就緒
+          until mysql -h mysql -u root -prootpassword -e "SELECT 1" &>/dev/null; do
+            echo "等待 MySQL 就緒..."
+            sleep 5
+          done
+          
+          # 修復 spring用戶權限
+          mysql -h mysql -u root -prootpassword << 'EOF'
+          -- 刪除舊用戶
+          DROP USER IF EXISTS 'springboot'@'localhost';
+          DROP USER IF EXISTS 'springboot'@'%';
+          
+          -- 創建新用戶，允許從任何主機連接
+          CREATE USER 'springboot'@'%' IDENTIFIED BY 'springboot123';
+          GRANT ALL PRIVILEGES ON spring_boot_demo.* TO 'springboot'@'%';
+          FLUSH PRIVILEGES;
+          
+          -- 驗證
+          SELECT User, Host FROM mysql.user WHERE User='springboot';
+          EOF
+          
+          echo "MySQL 用戶權限修復完成！"
+      restartPolicy: Never
+  backoffLimit: 3
