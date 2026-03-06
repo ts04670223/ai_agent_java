@@ -138,22 +138,23 @@ export const userAPI = {
   }),
 };
 
+// TODO: AI 功能暫時停用
 // AI 助手相關 API（Ollama LLM）
-export const aiAPI = {
-  // 通用購物助手對話（LLM 推理最多 5 分鐘，確保不提前超時）
-  chat: (message, history = [], systemPrompt = null) =>
-    api.post('/ai/chat', { message, history, systemPrompt }, { timeout: 300000 }),
-  // 根據意圖推薦商品
-  recommend: (intent) =>
-    api.post('/ai/recommend', { intent }, { timeout: 300000 }),
-  // 自然語言搜尋關鍵字萃取
-  searchAssist: (q) =>
-    api.get(`/ai/search?q=${encodeURIComponent(q)}`, { timeout: 120000 }),
-  // 商品 AI 摘要
-  productSummary: (id) =>
-    api.get(`/ai/products/${id}/summary`, { timeout: 120000 }),
-  // 健康檢查（輕量，使用 /api/tags 不做推理，3 秒應足夠）
-  health: () => api.get('/ai/health', { timeout: 8000 }),
-};
+// export const aiAPI = {
+//   // 通用購物助手對話（LLM 推理最多 5 分鐘，確保不提前超時）
+//   chat: (message, history = [], systemPrompt = null) =>
+//     api.post('/ai/chat', { message, history, systemPrompt }, { timeout: 300000 }),
+//   // 根據意圖推薦商品
+//   recommend: (intent) =>
+//     api.post('/ai/recommend', { intent }, { timeout: 300000 }),
+//   // 自然語言搜尋關鍵字萃取
+//   searchAssist: (q) =>
+//     api.get(`/ai/search?q=${encodeURIComponent(q)}`, { timeout: 120000 }),
+//   // 商品 AI 摘要
+//   productSummary: (id) =>
+//     api.get(`/ai/products/${id}/summary`, { timeout: 120000 }),
+//   // 健康檢查（輕量，使用 /api/tags 不做推理，3 秒應足夠）
+//   health: () => api.get('/ai/health', { timeout: 8000 }),
+// };
 
 export default api;

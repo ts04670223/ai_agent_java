@@ -96,7 +96,7 @@ const Layout = () => {
 
   const menuItems = [
     { text: '商店', icon: <Store />, path: '/shop' },
-    { text: 'AI助手', icon: <SmartToy />, path: '/ai' },
+    // { text: 'AI助手', icon: <SmartToy />, path: '/ai' }, // TODO: AI 功能暫時停用
     { text: '購物車', icon: <ShoppingCart />, path: '/cart' },
     { text: '願望清單', icon: <FavoriteBorder />, path: '/wishlist' },
     { text: '訂單', icon: <Receipt />, path: '/orders' },

@@ -189,9 +189,9 @@ function Shop() {
                 {/* Mobile Search placeholder or hidden */}
              </div>
              <nav className="flex items-center space-x-2">
-                <Button variant="ghost" size="icon" onClick={() => navigate('/ai')} title="AI 助手" className="relative">
-                  <Bot className="h-5 w-5" />
-                </Button>
+                {/* <Button variant="ghost" size="icon" onClick={() => navigate('/ai')} title="AI 助手" className="relative">*/}{/* TODO: AI 功能暫時停用 */}
+                {/*   <Bot className="h-5 w-5" />*/}
+                {/* </Button>*/}
                 <Button variant="ghost" size="icon" onClick={() => navigate('/chat')} className="relative">
                   <MessageCircle className="h-5 w-5" />
                   {unreadCount > 0 && (

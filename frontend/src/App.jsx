@@ -16,7 +16,7 @@ import Orders from './pages/Orders';
 import Profile from './pages/Profile';
 import Wishlist from './pages/Wishlist';
 import Chat from './pages/Chat';
-import AiAssistant from './pages/AiAssistant';
+// import AiAssistant from './pages/AiAssistant'; // TODO: AI 功能暫時停用
 import AdminDashboard from './pages/admin/Dashboard';
 
 // Components
@@ -68,7 +68,7 @@ function App() {
               <Route index element={<Navigate to="/shop" />} />
               <Route path="shop" element={<Shop />} />
               <Route path="chat" element={<Chat />} />
-              <Route path="ai" element={<AiAssistant />} />
+              {/* <Route path="ai" element={<AiAssistant />} /> */}{/* TODO: AI 功能暫時停用 */}
               <Route path="product/:id" element={<ProductDetail />} />
               <Route path="cart" element={<Cart />} />
               <Route path="checkout" element={<Checkout />} />
