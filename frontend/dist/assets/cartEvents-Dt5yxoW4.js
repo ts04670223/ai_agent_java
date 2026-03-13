@@ -1,0 +1,1 @@
+class e{constructor(){this.listeners=[]}subscribe(s){return this.listeners.push(s),()=>{this.listeners=this.listeners.filter(t=>t!==s)}}notify(){this.listeners.forEach(s=>s())}}const i=new e;export{i as c};

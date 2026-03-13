@@ -1,5 +1,5 @@
-import axios from 'axios';
-import toast from 'react-hot-toast';
+import axios from 'axios'
+import { useToast } from 'vue-toastification'
 
 const api = axios.create({
   baseURL: '/api',
@@ -55,13 +55,11 @@ api.interceptors.response.use(
     const isAiRequest = requestUrl.includes('/ai/');
 
     if (error.response?.status === 401 && !isAuthRequest) {
-      // Token 過期或無效，且不是正在嘗試登入或註冊
-      localStorage.removeItem('auth-storage');
-      window.location.href = '/login';
-      toast.error('登入已過期，請重新登入');
+      localStorage.removeItem('auth-storage')
+      window.location.href = '/login'
+      try { useToast().error('登入已過期，請重新登入') } catch {}
     } else if (!isAiRequest && error.response?.status >= 500) {
-      // AI 端點的 5xx 錯誤由各 page 自行處理（避免重複 toast）
-      toast.error('服務器錯誤，請稍後再試');
+      try { useToast().error('服務器錯誤，請稍後再試') } catch {}
     }
     
     return Promise.reject(error);
