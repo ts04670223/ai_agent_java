@@ -1,7 +1,9 @@
 package com.example.demo.controller;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -90,18 +92,18 @@ public class AiController {
                             if (token == null) {
                                 // null 表示串流結束
                                 try { emitter.send(SseEmitter.event().name("done").data("[END]")); }
-                                catch (Exception ignored) { }
+                                catch (IOException ignored) { }
                                 emitter.complete();
                             } else {
                                 try { emitter.send(SseEmitter.event().data(token)); }
-                                catch (Exception e) { emitter.completeWithError(e); }
+                                catch (IOException e) { emitter.completeWithError(e); }
                             }
                         });
             } catch (RuntimeException e) {
                 try {
-                    emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
+                    emitter.send(SseEmitter.event().name("error").data(Objects.requireNonNull(String.valueOf(e.getMessage()))));
                     emitter.complete();
-                } catch (Exception ignored) { }
+                } catch (IOException ignored) { }
             }
         });
         return emitter;

@@ -1,6 +1,11 @@
 import axios from 'axios'
 import { useToast } from 'vue-toastification'
 
+// 延遲 import router，避免循環依賴（router 引用 store，store 引用 api）
+function getRouter() {
+  return import('../router/index.js').then(m => m.default)
+}
+
 const api = axios.create({
   baseURL: '/api',
   timeout: 10000,
@@ -41,6 +46,9 @@ api.interceptors.request.use(
   }
 );
 
+// 防止多個並發 401 重複觸發跳轉
+let isRedirectingToLogin = false
+
 // 響應攔截器
 api.interceptors.response.use(
   (response) => {
@@ -55,9 +63,25 @@ api.interceptors.response.use(
     const isAiRequest = requestUrl.includes('/ai/');
 
     if (error.response?.status === 401 && !isAuthRequest) {
-      localStorage.removeItem('auth-storage')
-      window.location.href = '/login'
-      try { useToast().error('登入已過期，請重新登入') } catch {}
+      if (!isRedirectingToLogin) {
+        isRedirectingToLogin = true
+        // 清除所有可能的 token 儲存位置
+        localStorage.removeItem('auth-storage')
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        // 使用 router.push 避免整頁重新載入（防止無限刷新迴圈）
+        getRouter().then(router => {
+          if (router.currentRoute.value.path !== '/login') {
+            router.push('/login')
+            try { useToast().error('登入已過期，請重新登入') } catch {}
+          }
+          // 跳轉完成後重置 flag，允許下次重新觸發
+          setTimeout(() => { isRedirectingToLogin = false }, 3000)
+        })
+      }
+      // 回傳永不 resolve 的 Promise，防止呼叫端的 .catch() 繼續執行
+      // 避免頁面仍顯示錯誤內容或停留在當前頁面
+      return new Promise(() => {})
     } else if (!isAiRequest && error.response?.status >= 500) {
       try { useToast().error('服務器錯誤，請稍後再試') } catch {}
     }

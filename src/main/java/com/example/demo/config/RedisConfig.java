@@ -17,6 +17,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
+import java.util.Objects;
 
 /**
  * Redis 快取設定
@@ -47,7 +48,7 @@ public class RedisConfig {
                 new GenericJackson2JsonRedisSerializer(objectMapper);
 
         RedisCacheConfiguration cacheConfig = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(30))          // 預設快取 30 分鐘
+                .entryTtl(Objects.requireNonNull(Duration.ofMinutes(30)))          // 預設快取 30 分鐘
                 .disableCachingNullValues()
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair
@@ -56,13 +57,13 @@ public class RedisConfig {
                         RedisSerializationContext.SerializationPair
                                 .fromSerializer(jsonSerializer));
 
-        return RedisCacheManager.builder(connectionFactory)
+        return RedisCacheManager.builder(Objects.requireNonNull(connectionFactory))
                 .cacheDefaults(cacheConfig)
                 // 各快取名稱可自訂 TTL
                 .withCacheConfiguration("product",
-                        cacheConfig.entryTtl(Duration.ofMinutes(10)))
+                        cacheConfig.entryTtl(Objects.requireNonNull(Duration.ofMinutes(10))))
                 .withCacheConfiguration("active_products",
-                        cacheConfig.entryTtl(Duration.ofMinutes(5)))
+                        cacheConfig.entryTtl(Objects.requireNonNull(Duration.ofMinutes(5))))
                 .build();
     }
 }

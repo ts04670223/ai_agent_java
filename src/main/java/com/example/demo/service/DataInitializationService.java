@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class DataInitializationService implements CommandLineRunner {
@@ -40,9 +41,8 @@ public class DataInitializationService implements CommandLineRunner {
                 createProduct("Apple Watch Series 9", "最新智慧手錶，健康監測功能", "12900.00", 75, "穿戴"),
                 createProduct("Magic Keyboard", "無線鍵盤，適用於Mac", "3490.00", 60, "配件"),
                 createProduct("Studio Display", "27吋5K顯示器", "49900.00", 15, "顯示器"),
-                createProduct("Mac mini M2", "小巧桌上型電腦，M2晶片", "19900.00", 40, "桌機")
-        );
-        productRepository.saveAll(products);
+                createProduct("Mac mini M2", "小巧桌上型電腦，M2晶片", "19900.00", 40, "桌機"));
+        productRepository.saveAll(Objects.requireNonNull(products));
         logger.info("已初始化 {} 個測試商品", products.size());
     }
 

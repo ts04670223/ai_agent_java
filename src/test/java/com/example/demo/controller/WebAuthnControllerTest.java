@@ -7,7 +7,6 @@ import com.example.demo.service.JwtService;
 import com.example.demo.service.UserService;
 import com.example.demo.service.WebAuthnCredentialRepository;
 import com.example.demo.service.WebAuthnService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yubico.webauthn.AssertionRequest;
 import com.yubico.webauthn.data.ByteArray;
 import com.yubico.webauthn.data.COSEAlgorithmIdentifier;
@@ -39,7 +38,6 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -63,13 +61,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = WebAuthnController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@SuppressWarnings({"unused", "null"}) // unused: @MockBean/@Nested/@BeforeEach/@AfterEach 由 Spring/JUnit 透過反射使用; null: Spring/Hamcrest API 缺少 @NonNull 標註
 class WebAuthnControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @MockBean
     private WebAuthnService webAuthnService;

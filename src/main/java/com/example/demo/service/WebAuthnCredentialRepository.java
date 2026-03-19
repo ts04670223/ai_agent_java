@@ -1,6 +1,5 @@
 package com.example.demo.service;
 
-import com.example.demo.model.PasskeyCredential;
 import com.example.demo.model.User;
 import com.example.demo.repository.PasskeyCredentialRepository;
 import com.example.demo.repository.UserRepository;
@@ -11,7 +10,6 @@ import com.yubico.webauthn.data.PublicKeyCredentialDescriptor;
 import org.springframework.stereotype.Component;
 
 import java.util.Base64;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,7 +25,7 @@ public class WebAuthnCredentialRepository implements CredentialRepository {
     private final UserRepository userRepository;
 
     public WebAuthnCredentialRepository(PasskeyCredentialRepository passkeyRepo,
-                                         UserRepository userRepository) {
+            UserRepository userRepository) {
         this.passkeyRepo = passkeyRepo;
         this.userRepository = userRepository;
     }

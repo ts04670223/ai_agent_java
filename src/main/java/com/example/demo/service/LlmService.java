@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.example.demo.dto.AiChatRequest;
 import com.example.demo.model.Product;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -69,9 +71,9 @@ public class LlmService {
      * @param tokenConsumer 每個 token 的回呼（在呼叫端執行緒中被呼叫）
      */
     public void chatStream(String userMessage,
-                           List<AiChatRequest.AiMessage> history,
-                           String customSystemPrompt,
-                           Consumer<String> tokenConsumer) {
+            List<AiChatRequest.AiMessage> history,
+            String customSystemPrompt,
+            Consumer<String> tokenConsumer) {
         String systemPrompt = (customSystemPrompt != null && !customSystemPrompt.isBlank())
                 ? customSystemPrompt
                 : DEFAULT_SYSTEM_PROMPT;
@@ -96,10 +98,12 @@ public class LlmService {
                         p.getStock()))
                 .collect(Collectors.joining("\n"));
 
-        String systemPrompt =
-                "你是購物推薦系統。根據用戶意圖，從以下商品清單中推薦最多3項最合適的商品，" +
-                "並說明推薦原因。只能推薦清單中存在的商品，回應使用繁體中文。\n\n" +
-                "商品清單：\n" + productList;
+        String systemPrompt = """
+                你是購物推薦系統。根據用戶意圖，從以下商品清單中推薦最多3項最合適的商品，\
+                並說明推薦原因。只能推薦清單中存在的商品，回應使用繁體中文。
+
+                商品清單：
+                """ + productList;
 
         List<Map<String, String>> messages = buildMessages(systemPrompt, null, userIntent);
         return callOllama(messages);
@@ -110,8 +114,7 @@ public class LlmService {
      * 回傳 JSON 格式：{"keywords": ["..."], "category": "..."}
      */
     public String extractSearchKeywords(String naturalLanguageQuery) {
-        String systemPrompt =
-                "你是搜尋輔助系統。將用戶的自然語言查詢轉換為適合商品搜尋的關鍵字。" +
+        String systemPrompt = "你是搜尋輔助系統。將用戶的自然語言查詢轉換為適合商品搜尋的關鍵字。" +
                 "只回傳 JSON，格式：{\"keywords\":[\"關鍵字1\",\"關鍵字2\"],\"category\":\"類別或空字串\"}。" +
                 "不要有任何其他文字。";
 
@@ -123,8 +126,7 @@ public class LlmService {
      * 商品描述摘要
      */
     public String summarizeProduct(Product product) {
-        String systemPrompt =
-                "你是商品介紹撰寫員。根據商品資訊，以2-3句繁體中文撰寫吸引人的商品摘要。";
+        String systemPrompt = "你是商品介紹撰寫員。根據商品資訊，以2-3句繁體中文撰寫吸引人的商品摘要。";
 
         String userMessage = String.format(
                 "商品名稱：%s\n分類：%s\n價格：$%.0f\n描述：%s",
@@ -162,41 +164,42 @@ public class LlmService {
         ObjectMapper mapper = new ObjectMapper();
         try {
             ollamaRestTemplate.execute(
-                CHAT_PATH,
-                HttpMethod.POST,
-                req -> {
-                    req.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-                    mapper.writeValue(req.getBody(), requestBody);
-                },
-                resp -> {
-                    try (BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(resp.getBody(), StandardCharsets.UTF_8))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            if (line.isBlank()) continue;
-                            try {
-                                Map<String, Object> chunk = mapper.readValue(line, Map.class);
-                                Map<?, ?> msg = (Map<?, ?>) chunk.get("message");
-                                if (msg != null) {
-                                    String content = (String) msg.get("content");
-                                    if (content != null && !content.isEmpty()) {
-                                        tokenConsumer.accept(content);
+                    CHAT_PATH,
+                    Objects.requireNonNull(HttpMethod.POST),
+                    req -> {
+                        req.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+                        mapper.writeValue(req.getBody(), requestBody);
+                    },
+                    resp -> {
+                        try (BufferedReader reader = new BufferedReader(
+                                new InputStreamReader(resp.getBody(), StandardCharsets.UTF_8))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                if (line.isBlank())
+                                    continue;
+                                try {
+                                    Map<String, Object> chunk = mapper.readValue(line, Map.class);
+                                    Map<?, ?> msg = (Map<?, ?>) chunk.get("message");
+                                    if (msg != null) {
+                                        String content = (String) msg.get("content");
+                                        if (content != null && !content.isEmpty()) {
+                                            tokenConsumer.accept(content);
+                                        }
                                     }
+                                    if (Boolean.TRUE.equals(chunk.get("done")))
+                                        break;
+                                } catch (JsonProcessingException parseEx) {
+                                    logger.debug("[Ollama Stream] 跳過無法解析的行: {}", line);
                                 }
-                                if (Boolean.TRUE.equals(chunk.get("done"))) break;
-                            } catch (Exception parseEx) {
-                                logger.debug("[Ollama Stream] 跳過無法解析的行: {}", line);
                             }
                         }
-                    }
-                    tokenConsumer.accept(null); // 串流結束訊號
-                    return null;
-                }
-            );
+                        tokenConsumer.accept(null); // 串流結束訊號
+                        return null;
+                    });
         } catch (ResourceAccessException e) {
             logger.warn("[Ollama Stream] 連線失敗: {}", e.getMessage());
             throw new RuntimeException("AI 服務暫時無法使用，請稍後再試");
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("[Ollama Stream] 呼叫失敗: {}", e.getMessage(), e);
             throw new RuntimeException("AI 服務發生錯誤: " + e.getMessage());
         }
@@ -226,7 +229,7 @@ public class LlmService {
         } catch (ResourceAccessException e) {
             logger.warn("Ollama 健康檢查失敗（連線）：{}", e.getMessage());
             throw new RuntimeException("Ollama 服務無法連線");
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("Ollama 健康檢查失敗：{}", e.getMessage());
             throw new RuntimeException("Ollama 健康檢查錯誤: " + e.getMessage());
         }
@@ -246,10 +249,10 @@ public class LlmService {
         // num_predict=20：20 × 3.7s = 74 秒，遠低於 270s timeout
         // num_thread=4：配合 VM 4 核心
         Map<String, Object> options = new HashMap<>();
-        options.put("num_ctx", 128);        // context window 128（prefill 最小化）
-        options.put("num_predict", 20);     // 最多生成 20 token（約 10-14 個中文字）
-        options.put("num_thread", 4);       // 配合 VM 4 核心
-        options.put("temperature", 0.1);    // 幾乎 greedy decode，省略 sampling 開銷
+        options.put("num_ctx", 128); // context window 128（prefill 最小化）
+        options.put("num_predict", 20); // 最多生成 20 token（約 10-14 個中文字）
+        options.put("num_thread", 4); // 配合 VM 4 核心
+        options.put("temperature", 0.1); // 幾乎 greedy decode，省略 sampling 開銷
         requestBody.put("options", options);
 
         try {
@@ -271,7 +274,7 @@ public class LlmService {
         } catch (ResourceAccessException e) {
             logger.warn("Ollama 服務無法連線（{}），確認 Pod 是否已啟動", e.getMessage());
             throw new RuntimeException("AI 服務暫時無法使用，請稍後再試");
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("呼叫 Ollama 失敗: {}", e.getMessage(), e);
             throw new RuntimeException("AI 服務發生錯誤: " + e.getMessage());
         }

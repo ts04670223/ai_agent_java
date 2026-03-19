@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -30,7 +31,7 @@ public class CartService {
      * 取得用戶的購物車
      */
     public Cart getCartByUserId(Long userId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findById(Objects.requireNonNull(userId))
                 .orElseThrow(() -> new RuntimeException("找不到用戶，ID: " + userId));
 
         return cartRepository.findByUser(user)
@@ -47,7 +48,7 @@ public class CartService {
     public Cart addItemToCart(Long userId, Long productId, Integer quantity) {
         Cart cart = getCartByUserId(userId);
 
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findById(Objects.requireNonNull(productId))
                 .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + productId));
 
         // 檢查庫存
@@ -78,7 +79,7 @@ public class CartService {
             cartItemRepository.save(newItem);
         }
 
-        return cartRepository.save(cart);
+        return cartRepository.save(Objects.requireNonNull(cart));
     }
 
     /**
@@ -88,7 +89,7 @@ public class CartService {
     public Cart updateCartItemQuantity(Long userId, Integer cartItemId, Integer quantity) {
         Cart cart = getCartByUserId(userId);
 
-        CartItem cartItem = cartItemRepository.findById(cartItemId)
+        CartItem cartItem = cartItemRepository.findById(Objects.requireNonNull(cartItemId))
                 .orElseThrow(() -> new RuntimeException("找不到購物車項目，ID: " + cartItemId));
 
         if (!cartItem.getCart().getId().equals(cart.getId())) {
@@ -119,7 +120,7 @@ public class CartService {
     public Cart removeItemFromCart(Long userId, Integer cartItemId) {
         Cart cart = getCartByUserId(userId);
 
-        CartItem cartItem = cartItemRepository.findById(cartItemId)
+        CartItem cartItem = cartItemRepository.findById(Objects.requireNonNull(cartItemId))
                 .orElseThrow(() -> new RuntimeException("找不到購物車項目，ID: " + cartItemId));
 
         if (!cartItem.getCart().getId().equals(cart.getId())) {

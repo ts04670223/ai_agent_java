@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -108,7 +109,7 @@ public class WebAuthnController {
             log.debug("startRegistration 業務錯誤: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error("無法啟動 Passkey 註冊，請確認您已登入"));
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             log.error("startRegistration 失敗", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("無法啟動 Passkey 註冊"));
@@ -138,7 +139,6 @@ public class WebAuthnController {
             PublicKeyCredentialCreationOptions options =
                     PublicKeyCredentialCreationOptions.fromJson(optionsJson);
 
-            @SuppressWarnings("unchecked")
             PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> credential =
                     PublicKeyCredential.parseRegistrationResponseJson(request.getRawResponse());
 
@@ -154,7 +154,7 @@ public class WebAuthnController {
             log.warn("Passkey 註冊驗證失敗: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error("Passkey 驗證失敗：" + e.getMessage()));
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             log.error("finishRegistration 失敗", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("完成 Passkey 註冊時發生錯誤"));
@@ -178,7 +178,7 @@ public class WebAuthnController {
 
             Object requestJson = objectMapper.readValue(assertionRequest.toJson(), Object.class);
             return ResponseEntity.ok(ApiResponse.success("請完成生物辨識驗證", requestJson));
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             log.error("startAssertion 失敗", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("無法啟動 Passkey 登入"));
@@ -203,7 +203,6 @@ public class WebAuthnController {
 
             AssertionRequest assertionRequest = AssertionRequest.fromJson(assertionJson);
 
-            @SuppressWarnings("unchecked")
             PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> credential =
                     PublicKeyCredential.parseAssertionResponseJson(request.getRawResponse());
 
@@ -234,7 +233,7 @@ public class WebAuthnController {
             log.warn("Passkey 認證失敗: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Passkey 驗證失敗，請再試一次"));
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             log.error("finishAssertion 失敗", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("完成 Passkey 登入時發生錯誤"));

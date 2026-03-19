@@ -87,7 +87,7 @@ public class AuthController {
             logger.warn("登入失敗（帳號或密碼錯誤）");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error("用戶名或密碼錯誤"));
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("登入時發生未預期錯誤", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("登入失敗", e.getMessage()));

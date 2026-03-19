@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -72,7 +73,7 @@ public class ChatService {
      */
     @Transactional
     public boolean markAsRead(Long messageId) {
-        Optional<ChatMessage> messageOpt = chatMessageRepository.findById(messageId);
+        Optional<ChatMessage> messageOpt = chatMessageRepository.findById(Objects.requireNonNull(messageId));
         if (messageOpt.isPresent()) {
             ChatMessage message = messageOpt.get();
             message.setIsRead(true);
@@ -103,8 +104,8 @@ public class ChatService {
      */
     @Transactional
     public boolean deleteMessage(Long messageId) {
-        if (chatMessageRepository.existsById(messageId)) {
-            chatMessageRepository.deleteById(messageId);
+        if (chatMessageRepository.existsById(Objects.requireNonNull(messageId))) {
+            chatMessageRepository.deleteById(Objects.requireNonNull(messageId));
             return true;
         }
         return false;
@@ -115,6 +116,6 @@ public class ChatService {
      */
     @Transactional(readOnly = true)
     public Optional<ChatMessage> getMessageById(Long messageId) {
-        return chatMessageRepository.findById(messageId);
+        return chatMessageRepository.findById(Objects.requireNonNull(messageId));
     }
 }

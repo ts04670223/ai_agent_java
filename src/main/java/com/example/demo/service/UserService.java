@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -54,7 +55,7 @@ public class UserService implements UserDetailsService {
      * 根據ID取得用戶
      */
     public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
+        return userRepository.findById(Objects.requireNonNull(id));
     }
 
     /**
@@ -72,7 +73,7 @@ public class UserService implements UserDetailsService {
     }
 
     public User save(User user) {
-        return userRepository.save(user);
+        return userRepository.save(Objects.requireNonNull(user));
     }
 
     /**
@@ -161,7 +162,7 @@ public class UserService implements UserDetailsService {
      * 更新用戶資訊
      */
     public User updateUser(Long id, User userDetails) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new RuntimeException("找不到用戶，ID: " + id));
 
         // 如果email有變更，檢查新email是否已存在
@@ -182,9 +183,9 @@ public class UserService implements UserDetailsService {
      * 刪除用戶
      */
     public void deleteUser(Long id) {
-        User user = userRepository.findById(id)
+        User user = userRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new RuntimeException("找不到用戶，ID: " + id));
-        userRepository.delete(user);
+        userRepository.delete(Objects.requireNonNull(user));
     }
 
     /**

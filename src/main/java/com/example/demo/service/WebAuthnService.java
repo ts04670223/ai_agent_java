@@ -1,36 +1,46 @@
 package com.example.demo.service;
 
-import com.example.demo.model.PasskeyCredential;
-import com.example.demo.model.User;
-import com.example.demo.repository.PasskeyCredentialRepository;
-import com.example.demo.repository.UserRepository;
-import com.yubico.webauthn.FinishAssertionOptions;
-import com.yubico.webauthn.FinishRegistrationOptions;
-import com.yubico.webauthn.RelyingParty;
-import com.yubico.webauthn.StartAssertionOptions;
-import com.yubico.webauthn.StartRegistrationOptions;
-import com.yubico.webauthn.AssertionRequest;
-import com.yubico.webauthn.AssertionResult;
-import com.yubico.webauthn.RegistrationResult;
-import com.yubico.webauthn.data.*;
-import com.yubico.webauthn.exception.AssertionFailedException;
-import com.yubico.webauthn.exception.RegistrationFailedException;
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.List;
-import java.util.Optional;
+import com.example.demo.model.PasskeyCredential;
+import com.example.demo.model.User;
+import com.example.demo.repository.PasskeyCredentialRepository;
+import com.example.demo.repository.UserRepository;
+import com.yubico.webauthn.AssertionRequest;
+import com.yubico.webauthn.AssertionResult;
+import com.yubico.webauthn.FinishAssertionOptions;
+import com.yubico.webauthn.FinishRegistrationOptions;
+import com.yubico.webauthn.RegistrationResult;
+import com.yubico.webauthn.RelyingParty;
+import com.yubico.webauthn.StartAssertionOptions;
+import com.yubico.webauthn.StartRegistrationOptions;
+import com.yubico.webauthn.data.AuthenticatorAssertionResponse;
+import com.yubico.webauthn.data.AuthenticatorAttestationResponse;
+import com.yubico.webauthn.data.AuthenticatorSelectionCriteria;
+import com.yubico.webauthn.data.ByteArray;
+import com.yubico.webauthn.data.ClientAssertionExtensionOutputs;
+import com.yubico.webauthn.data.ClientRegistrationExtensionOutputs;
+import com.yubico.webauthn.data.PublicKeyCredential;
+import com.yubico.webauthn.data.PublicKeyCredentialCreationOptions;
+import com.yubico.webauthn.data.ResidentKeyRequirement;
+import com.yubico.webauthn.data.UserIdentity;
+import com.yubico.webauthn.data.UserVerificationRequirement;
+import com.yubico.webauthn.exception.AssertionFailedException;
+import com.yubico.webauthn.exception.RegistrationFailedException;
 
 /**
  * WebAuthn / Passkeys 核心服務
  *
  * 流程:
- *   [註冊] startRegistration() -> finishRegistration()
- *   [登入] startAssertion()    -> finishAssertion()
+ * [註冊] startRegistration() -> finishRegistration()
+ * [登入] startAssertion() -> finishAssertion()
  */
 @Service
 public class WebAuthnService {
@@ -42,8 +52,8 @@ public class WebAuthnService {
     private final PasskeyCredentialRepository passkeyRepo;
 
     public WebAuthnService(RelyingParty relyingParty,
-                           UserRepository userRepository,
-                           PasskeyCredentialRepository passkeyRepo) {
+            UserRepository userRepository,
+            PasskeyCredentialRepository passkeyRepo) {
         this.relyingParty = relyingParty;
         this.userRepository = userRepository;
         this.passkeyRepo = passkeyRepo;
@@ -82,9 +92,9 @@ public class WebAuthnService {
      */
     @Transactional
     public PasskeyCredential finishRegistration(String username,
-                                                 PublicKeyCredentialCreationOptions requestOptions,
-                                                 PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> credential,
-                                                 String displayName)
+            PublicKeyCredentialCreationOptions requestOptions,
+            PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> credential,
+            String displayName)
             throws RegistrationFailedException {
 
         RegistrationResult result = relyingParty.finishRegistration(
@@ -118,9 +128,8 @@ public class WebAuthnService {
      * username 可為 null（支援 discoverable credential）
      */
     public AssertionRequest startAssertion(String username) {
-        StartAssertionOptions.StartAssertionOptionsBuilder builder =
-                StartAssertionOptions.builder()
-                        .userVerification(UserVerificationRequirement.PREFERRED);
+        StartAssertionOptions.StartAssertionOptionsBuilder builder = StartAssertionOptions.builder()
+                .userVerification(UserVerificationRequirement.PREFERRED);
 
         if (username != null && !username.isBlank()) {
             builder.username(username);
@@ -134,7 +143,7 @@ public class WebAuthnService {
      */
     @Transactional
     public User finishAssertion(AssertionRequest assertionRequest,
-                                 PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> credential)
+            PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> credential)
             throws AssertionFailedException {
 
         AssertionResult result = relyingParty.finishAssertion(

@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -43,7 +44,7 @@ public class OrderService {
      */
     @Transactional
     public Order createOrderFromCart(Long userId, String shippingAddress, String phone, String note) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findById(Objects.requireNonNull(userId))
                 .orElseThrow(() -> new RuntimeException("找不到用戶，ID: " + userId));
 
         Cart cart = cartService.getCartByUserId(userId);
@@ -107,7 +108,7 @@ public class OrderService {
      * 根據ID取得訂單
      */
     public Optional<Order> getOrderById(Integer orderId) {
-        return orderRepository.findById(orderId);
+        return orderRepository.findById(Objects.requireNonNull(orderId));
     }
 
     /**
@@ -122,7 +123,7 @@ public class OrderService {
      */
     @Transactional
     public Order updateOrderStatus(Integer orderId, OrderStatus status) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findById(Objects.requireNonNull(orderId))
                 .orElseThrow(() -> new RuntimeException("找不到訂單，ID: " + orderId));
 
         order.setStatus(status);
@@ -134,7 +135,7 @@ public class OrderService {
      */
     @Transactional
     public Order cancelOrder(Integer orderId, Long userId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findById(Objects.requireNonNull(orderId))
                 .orElseThrow(() -> new RuntimeException("找不到訂單，ID: " + orderId));
 
         // 檢查訂單是否屬於該用戶

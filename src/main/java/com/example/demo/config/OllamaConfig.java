@@ -3,6 +3,7 @@ package com.example.demo.config;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,7 @@ public class OllamaConfig {
         factory.setReadTimeout(readTimeoutSeconds * 1000);
 
         RestTemplate restTemplate = new RestTemplate(factory);
-        restTemplate.setUriTemplateHandler(new DefaultUriBuilderFactory(ollamaBaseUrl));
+        restTemplate.setUriTemplateHandler(new DefaultUriBuilderFactory(Objects.requireNonNull(ollamaBaseUrl)));
         return restTemplate;
     }
 
@@ -66,7 +67,7 @@ public class OllamaConfig {
                     body.put("options", options);
                     ollamaRestTemplate.postForObject("/api/chat", body, Map.class);
                     logger.info("[Ollama] 模型預熱完成，已常駐記憶體");
-                } catch (Exception e) {
+                } catch (RuntimeException e) {
                     logger.warn("[Ollama] 預熱失敗（Ollama 可能尚未就緒）: {}", e.getMessage());
                 }
             }, "ollama-warmup").start();

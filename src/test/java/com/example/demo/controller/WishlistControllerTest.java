@@ -26,6 +26,7 @@ import com.example.demo.service.WishlistService;
 
 @WebMvcTest(controllers = WishlistController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@SuppressWarnings("unused") // @MockBean 欄位由 Spring 透過反射使用，非真正未使用
 public class WishlistControllerTest {
 
     @Autowired
@@ -35,9 +36,11 @@ public class WishlistControllerTest {
     private WishlistService wishlistService;
 
     @MockBean
+    @SuppressWarnings("unused") // JwtAuthenticationFilter 資安需要此 bean 存在於 context
     private JwtService jwtService;
 
     @MockBean
+    @SuppressWarnings("unused") // UserDetailsService 資安需要此 bean 存在於 context
     private UserService userService;
 
     // GET /api/wishlist

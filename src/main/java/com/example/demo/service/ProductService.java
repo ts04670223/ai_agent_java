@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.springframework.cache.annotation.CacheEvict;
@@ -40,7 +41,7 @@ public class ProductService {
      */
     @Cacheable(value = "product", key = "#id")
     public Optional<Product> getProductById(Long id) {
-        return productRepository.findById(id);
+        return productRepository.findById(Objects.requireNonNull(id));
     }
 
     /**
@@ -69,7 +70,7 @@ public class ProductService {
      */
     @CacheEvict(value = "active_products", allEntries = true)
     public Product createProduct(Product product) {
-        return productRepository.save(product);
+        return productRepository.save(Objects.requireNonNull(product));
     }
 
     /**
@@ -80,7 +81,7 @@ public class ProductService {
             @CacheEvict(value = "active_products", allEntries = true)
     })
     public Product updateProduct(Long id, Product productDetails) {
-        Product product = productRepository.findById(id)
+        Product product = productRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + id));
 
         product.setName(productDetails.getName());
@@ -112,7 +113,7 @@ public class ProductService {
             @CacheEvict(value = "active_products", allEntries = true)
     })
     public void deactivateProduct(Long id) {
-        Product product = productRepository.findById(id)
+        Product product = productRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + id));
         product.setActive(false);
         productRepository.save(product);
@@ -126,9 +127,9 @@ public class ProductService {
             @CacheEvict(value = "active_products", allEntries = true)
     })
     public void deleteProduct(Long id) {
-        Product product = productRepository.findById(id)
+        Product product = productRepository.findById(Objects.requireNonNull(id))
                 .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + id));
-        productRepository.delete(product);
+        productRepository.delete(Objects.requireNonNull(product));
     }
 
     /**
@@ -139,7 +140,7 @@ public class ProductService {
             @CacheEvict(value = "active_products", allEntries = true)
     })
     public void updateStock(Long productId, Integer quantity) {
-        Product product = productRepository.findById(productId)
+        Product product = productRepository.findById(Objects.requireNonNull(productId))
                 .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + productId));
 
         int newStock = product.getStock() + quantity;
