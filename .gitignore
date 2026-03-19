@@ -57,3 +57,11 @@ Desktop.ini
 *.h2.db
 
 frontend/node_modules
+
+### Temp output files ###
+*.bak
+server-out*.txt
+server-err*.txt
+*-test*.txt
+test-output.txt
+final-test.txt
