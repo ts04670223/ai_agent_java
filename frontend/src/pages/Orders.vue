@@ -37,7 +37,7 @@
               </v-col>
               <v-col cols="12">
                 <v-icon size="small" class="mr-1">mdi-credit-card</v-icon>
-                總計: <strong class="text-primary">${{ parseFloat(order.total || 0).toFixed(0) }}</strong>
+                總計: <strong class="text-primary">${{ parseFloat(order.totalAmount || 0).toFixed(0) }}</strong>
               </v-col>
             </v-row>
           </v-card-text>
@@ -86,7 +86,7 @@
           <v-divider class="mt-2 mb-3" />
           <div class="d-flex justify-space-between text-body-1 font-weight-bold">
             <span>訂單總計</span>
-            <span class="text-primary">${{ parseFloat(selectedOrder.total || 0).toFixed(0) }}</span>
+            <span class="text-primary">${{ parseFloat(selectedOrder.totalAmount || 0).toFixed(0) }}</span>
           </div>
 
           <div v-if="selectedOrder.note" class="mt-3">

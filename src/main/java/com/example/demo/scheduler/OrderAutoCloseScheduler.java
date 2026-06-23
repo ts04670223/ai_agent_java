@@ -1,8 +1,8 @@
 package com.example.demo.scheduler;
 
-import com.example.demo.model.Order;
-import com.example.demo.model.OrderStatus;
-import com.example.demo.repository.OrderRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -10,8 +10,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import com.example.demo.model.Order;
+import com.example.demo.model.OrderStatus;
+import com.example.demo.repository.OrderRepository;
 
 /**
  * 訂單自動取消排程任務
@@ -48,16 +49,11 @@ public class OrderAutoCloseScheduler {
         LocalDateTime threshold = LocalDateTime.now().minusDays(AUTO_CANCEL_DAYS);
         try {
             List<Order> pendingOrders = orderRepository.findPendingOrdersOlderThan(threshold);
-            int count = 0;
-            for (Order order : pendingOrders) {
-                order.setStatus(OrderStatus.CANCELLED);
-                orderRepository.save(order);
-                count++;
-                log.debug("[Scheduler] 訂單 {} 已自動取消（超過 {} 天未付款）",
-                        order.getOrderNumber(), AUTO_CANCEL_DAYS);
-            }
-            if (count > 0) {
-                log.info("[Scheduler] OrderAutoClose 完成，共自動取消 {} 筆訂單", count);
+            if (!pendingOrders.isEmpty()) {
+                pendingOrders.forEach(order -> order.setStatus(OrderStatus.CANCELLED));
+                // 優化 #4：批次儲存取代逐筆 save，減少 N 次 DB round-trip
+                orderRepository.saveAll(pendingOrders);
+                log.info("[Scheduler] OrderAutoClose 完成，共自動取消 {} 筆訂單", pendingOrders.size());
             } else {
                 log.info("[Scheduler] OrderAutoClose 完成，無需取消");
             }

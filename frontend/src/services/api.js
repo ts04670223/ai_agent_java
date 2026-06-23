@@ -136,7 +136,7 @@ export const chatAPI = {
 
 // 訂單相關 API
 export const orderAPI = {
-  createOrder: (params) => api.post(`/orders${params}`),
+  createOrder: (data) => api.post('/orders', data),
   getOrders: () => api.get('/orders'),
   getOrder: (orderId) => api.get(`/orders/${orderId}`),
   cancelOrder: (orderId, userId) => api.post(`/orders/${orderId}/cancel`, null, { params: { userId } }),

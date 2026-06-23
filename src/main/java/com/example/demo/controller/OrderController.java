@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.dto.CreateOrderRequest;
 import com.example.demo.dto.OrderResponseDto;
+import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.model.Order;
 import com.example.demo.model.OrderStatus;
 import com.example.demo.model.User;
@@ -89,7 +90,7 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponseDto>> getOrderById(
             @PathVariable Integer orderId) {
         Order order = orderService.getOrderById(orderId)
-                .orElseThrow(() -> new RuntimeException("Not Found: order id " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("訂單", orderId));
         return ResponseEntity.ok(ApiResponse.success(OrderResponseDto.from(order)));
     }
 
@@ -102,7 +103,7 @@ public class OrderController {
             @PathVariable String orderNumber) {
         Order order = orderService.getOrderByOrderNumber(orderNumber);
         if (order == null) {
-            throw new RuntimeException("找不到訂單編號: " + orderNumber);
+            throw new ResourceNotFoundException("訂單", "orderNumber", orderNumber);
         }
         return ResponseEntity.ok(ApiResponse.success(OrderResponseDto.from(order)));
     }

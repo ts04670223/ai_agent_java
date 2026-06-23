@@ -11,6 +11,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import com.example.demo.exception.BusinessException;
+import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.model.Product;
 import com.example.demo.repository.ProductRepository;
 
@@ -75,6 +77,26 @@ public class ProductService {
     }
 
     /**
+     * 創建商品（優化 #10：接受 DTO，避免直接暴露 entity）
+     */
+    @CacheEvict(value = "active_products", allEntries = true)
+    public Product createProductFromRequest(com.example.demo.dto.CreateProductRequest request) {
+        Product product = new Product();
+        product.setName(request.getName());
+        product.setDescription(request.getDescription());
+        product.setShortDescription(request.getShortDescription());
+        product.setPrice(request.getPrice());
+        product.setOriginalPrice(request.getOriginalPrice());
+        product.setStock(request.getStock());
+        product.setBrand(request.getBrand());
+        product.setCategory(request.getCategory());
+        product.setSubCategory(request.getSubCategory());
+        product.setActive(Boolean.TRUE.equals(request.getActive()) || request.getActive() == null);
+        product.setFeatured(Boolean.TRUE.equals(request.getFeatured()));
+        return productRepository.save(product);
+    }
+
+    /**
      * 創建商品
      */
     @CacheEvict(value = "active_products", allEntries = true)
@@ -91,7 +113,7 @@ public class ProductService {
     })
     public Product updateProduct(Long id, Product productDetails) {
         Product product = productRepository.findById(Objects.requireNonNull(id))
-                .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("商品", id));
 
         product.setName(productDetails.getName());
         product.setDescription(productDetails.getDescription());
@@ -123,7 +145,7 @@ public class ProductService {
     })
     public void deactivateProduct(Long id) {
         Product product = productRepository.findById(Objects.requireNonNull(id))
-                .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("商品", id));
         product.setActive(false);
         productRepository.save(product);
     }
@@ -137,7 +159,7 @@ public class ProductService {
     })
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(Objects.requireNonNull(id))
-                .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("商品", id));
         productRepository.delete(Objects.requireNonNull(product));
     }
 
@@ -150,11 +172,11 @@ public class ProductService {
     })
     public void updateStock(Long productId, Integer quantity) {
         Product product = productRepository.findById(Objects.requireNonNull(productId))
-                .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("商品", productId));
 
         int newStock = product.getStock() + quantity;
         if (newStock < 0) {
-            throw new RuntimeException("庫存不足");
+            throw new BusinessException("庫存不足");
         }
 
         product.setStock(newStock);

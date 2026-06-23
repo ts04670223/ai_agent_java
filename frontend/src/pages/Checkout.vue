@@ -76,14 +76,15 @@
               <span>商品小計</span>
               <span>${{ parseFloat(total).toFixed(0) }}</span>
             </div>
-            <div class="d-flex justify-space-between mb-1">
+            <!-- <div class="d-flex justify-space-between mb-1">
               <span>運費</span>
               <span>$60</span>
-            </div>
+            </div> -->
             <v-divider class="my-2" />
             <div class="d-flex justify-space-between text-body-1 font-weight-bold">
               <span>總計</span>
-              <span class="text-primary">${{ (parseFloat(total) + 60).toFixed(0) }}</span>
+              <!-- <span class="text-primary">${{ (parseFloat(total) + 60).toFixed(0) }}</span> -->
+              <span class="text-primary">${{ (parseFloat(total)).toFixed(0) }}</span>
             </div>
           </v-card-text>
         </v-card>
@@ -155,14 +156,12 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    const params = new URLSearchParams({
-      userId: user.value.id.toString(),
-      shippingAddress: formData.value.shippingAddress,
-      phone: formData.value.phone,
-    })
-    if (formData.value.note) params.append('note', formData.value.note)
-
-    const response = await orderAPI.createOrder(`?${params.toString()}`)
+    const response = await orderAPI.createOrder({
+  userId: user.value.id,
+  shippingAddress: formData.value.shippingAddress,
+  phone: formData.value.phone,
+  note: formData.value.note || null,
+})
     const orderData = response.data?.data || response.data
 
     try {

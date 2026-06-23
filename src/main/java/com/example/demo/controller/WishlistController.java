@@ -178,7 +178,7 @@ public class WishlistController {
             @PathVariable Long userId,
             @RequestParam Long productId) {
         try {
-            Wishlist item = wishlistService.addToWishlist(userId, productId);
+            Wishlist item = wishlistService.addToWishlistByUserId(userId, productId);
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "商品已加入願望清單");
@@ -203,7 +203,7 @@ public class WishlistController {
             @PathVariable Long userId,
             @PathVariable Long productId) {
         try {
-            wishlistService.removeFromWishlist(userId, productId);
+            wishlistService.removeFromWishlistByUserId(userId, productId);
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "商品已從願望清單移除");
@@ -227,7 +227,7 @@ public class WishlistController {
             @PathVariable Long userId,
             @RequestParam Long productId) {
         try {
-            boolean inWishlist = wishlistService.isInWishlist(userId, productId);
+            boolean inWishlist = wishlistService.isInWishlistByUserId(userId, productId);
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("inWishlist", inWishlist);

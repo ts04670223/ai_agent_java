@@ -108,14 +108,15 @@
                 <span>小計</span>
                 <span>${{ parseFloat(cart?.total || 0).toFixed(0) }}</span>
               </div>
-              <div class="d-flex justify-space-between mb-1">
+              <!-- <div class="d-flex justify-space-between mb-1">
                 <span>運費</span>
                 <span>$60</span>
-              </div>
+              </div> -->
               <v-divider class="my-3" />
               <div class="d-flex justify-space-between text-body-1 font-weight-bold">
                 <span>總計</span>
-                <span class="text-primary">${{ (parseFloat(cart?.total || 0) + 60).toFixed(0) }}</span>
+                <!-- <span class="text-primary">${{ (parseFloat(cart?.total || 0) + 60).toFixed(0) }}</span> -->
+                <span class="text-primary">${{ (parseFloat(cart?.total || 0)).toFixed(0) }}</span>
               </div>
             </v-card-text>
             <v-card-actions class="flex-column pa-4 ga-2">

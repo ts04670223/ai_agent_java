@@ -23,9 +23,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.CreateProductRequest;
 import com.example.demo.dto.ProductResponseDto;
+import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.model.Product;
 import com.example.demo.service.ProductService;
+
+import jakarta.validation.Valid;
 
 /**
  * 商品控制器
@@ -70,7 +74,7 @@ public class ProductController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ProductResponseDto>> getProductById(@PathVariable Long id) {
         Product product = productService.getProductById(id)
-                .orElseThrow(() -> new RuntimeException("Not Found: product id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("商品", id));
         return ResponseEntity.ok(ApiResponse.success(ProductResponseDto.from(product)));
     }
 
@@ -112,13 +116,14 @@ public class ProductController {
 
     /**
      * 建立商品（管理員功能）
+     * 優化 #10：改用 CreateProductRequest DTO，避免直接暴露 JPA entity
      * POST /api/products
      */
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<ApiResponse<ProductResponseDto>> createProduct(
-            @RequestBody Product product) {
-        Product created = productService.createProduct(product);
+            @Valid @RequestBody CreateProductRequest request) {
+        Product created = productService.createProductFromRequest(request);
         log.info("商品已建立: productId={}", created.getId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("商品建立成功", ProductResponseDto.from(created)));

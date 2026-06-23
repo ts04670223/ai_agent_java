@@ -2,11 +2,12 @@ package com.example.demo.service;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.demo.exception.BusinessException;
+import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.model.Product;
 import com.example.demo.model.User;
 import com.example.demo.model.Wishlist;
@@ -14,94 +15,109 @@ import com.example.demo.repository.ProductRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.repository.WishlistRepository;
 
+/**
+ * 優化 #3：統一以 username 為主，userId 版本內部轉換後呼叫，消除重複邏輯
+ */
 @Service
 public class WishlistService {
 
-        private final WishlistRepository wishlistRepository;
-        private final UserRepository userRepository;
-        private final ProductRepository productRepository;
+    private final WishlistRepository wishlistRepository;
+    private final UserRepository userRepository;
+    private final ProductRepository productRepository;
 
-        public WishlistService(WishlistRepository wishlistRepository,
-                        UserRepository userRepository,
-                        ProductRepository productRepository) {
-                this.wishlistRepository = wishlistRepository;
-                this.userRepository = userRepository;
-                this.productRepository = productRepository;
+    public WishlistService(WishlistRepository wishlistRepository,
+            UserRepository userRepository,
+            ProductRepository productRepository) {
+        this.wishlistRepository = wishlistRepository;
+        this.userRepository = userRepository;
+        this.productRepository = productRepository;
+    }
+
+    // ── 核心方法（以 User entity 為主）──────────────────────────────
+
+    public List<Wishlist> getWishlistByUser(User user) {
+        return wishlistRepository.findByUser(user);
+    }
+
+    @Transactional
+    public Wishlist addToWishlist(User user, Product product) {
+        if (wishlistRepository.existsByUserAndProduct(user, product)) {
+            throw new BusinessException("商品已在願望清單中");
         }
+        return wishlistRepository.save(new Wishlist(user, product));
+    }
 
-        public List<Wishlist> getWishlistByUserId(Long userId) {
-                User user = userRepository.findById(Objects.requireNonNull(userId))
-                                .orElseThrow(() -> new RuntimeException("找不到用戶，ID: " + userId));
-                return wishlistRepository.findByUser(user);
-        }
+    @Transactional
+    public void removeFromWishlist(User user, Product product) {
+        wishlistRepository.deleteByUserAndProduct(user, product);
+    }
 
-        public List<Wishlist> getWishlistByUsername(String username) {
-                User user = userRepository.findByUsername(username)
-                                .orElseThrow(() -> new RuntimeException("找不到用戶: " + username));
-                return wishlistRepository.findByUser(user);
-        }
+    public boolean isInWishlist(User user, Product product) {
+        return wishlistRepository.existsByUserAndProduct(user, product);
+    }
 
-        @Transactional
-        public Wishlist addToWishlistByUsername(String username, Long productId) {
-                User user = userRepository.findByUsername(username)
-                                .orElseThrow(() -> new RuntimeException("找不到用戶: " + username));
-                Product product = productRepository.findById(Objects.requireNonNull(productId))
-                                .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + productId));
-                if (wishlistRepository.existsByUserAndProduct(user, product)) {
-                        throw new RuntimeException("商品已在願望清單中");
-                }
-                return wishlistRepository.save(new Wishlist(user, product));
-        }
+    // ── 以 username 查詢（Controller 主要使用）──────────────────────
 
-        @Transactional
-        public void removeFromWishlistByUsername(String username, Long productId) {
-                User user = userRepository.findByUsername(username)
-                                .orElseThrow(() -> new RuntimeException("找不到用戶: " + username));
-                Product product = productRepository.findById(Objects.requireNonNull(productId))
-                                .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + productId));
-                wishlistRepository.deleteByUserAndProduct(user, product);
-        }
+    public List<Wishlist> getWishlistByUsername(String username) {
+        return getWishlistByUser(findUserByUsername(username));
+    }
 
-        public boolean isInWishlistByUsername(String username, Long productId) {
-                Optional<User> userOpt = userRepository.findByUsername(username);
-                if (userOpt.isEmpty())
-                        return false;
-                Optional<Product> productOpt = productRepository.findById(Objects.requireNonNull(productId));
-                if (productOpt.isEmpty())
-                        return false;
-                return wishlistRepository.existsByUserAndProduct(userOpt.get(), productOpt.get());
-        }
+    @Transactional
+    public Wishlist addToWishlistByUsername(String username, Long productId) {
+        return addToWishlist(findUserByUsername(username), findProduct(productId));
+    }
 
-        @Transactional
-        public Wishlist addToWishlist(Long userId, Long productId) {
-                User user = userRepository.findById(Objects.requireNonNull(userId))
-                                .orElseThrow(() -> new RuntimeException("找不到用戶，ID: " + userId));
-                Product product = productRepository.findById(Objects.requireNonNull(productId))
-                                .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + productId));
+    @Transactional
+    public void removeFromWishlistByUsername(String username, Long productId) {
+        removeFromWishlist(findUserByUsername(username), findProduct(productId));
+    }
 
-                if (wishlistRepository.existsByUserAndProduct(user, product)) {
-                        throw new RuntimeException("商品已在願望清單中");
-                }
+    public boolean isInWishlistByUsername(String username, Long productId) {
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null) return false;
+        Product product = productRepository.findById(Objects.requireNonNull(productId)).orElse(null);
+        if (product == null) return false;
+        return isInWishlist(user, product);
+    }
 
-                return wishlistRepository.save(new Wishlist(user, product));
-        }
+    // ── 以 userId 查詢（向下相容）──────────────────────────────────
 
-        @Transactional
-        public void removeFromWishlist(Long userId, Long productId) {
-                User user = userRepository.findById(Objects.requireNonNull(userId))
-                                .orElseThrow(() -> new RuntimeException("找不到用戶，ID: " + userId));
-                Product product = productRepository.findById(Objects.requireNonNull(productId))
-                                .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + productId));
+    public List<Wishlist> getWishlistByUserId(Long userId) {
+        return getWishlistByUser(findUserById(userId));
+    }
 
-                wishlistRepository.deleteByUserAndProduct(user, product);
-        }
+    @Transactional
+    public Wishlist addToWishlistByUserId(Long userId, Long productId) {
+        return addToWishlist(findUserById(userId), findProduct(productId));
+    }
 
-        public boolean isInWishlist(Long userId, Long productId) {
-                User user = userRepository.findById(Objects.requireNonNull(userId))
-                                .orElseThrow(() -> new RuntimeException("找不到用戶，ID: " + userId));
-                Product product = productRepository.findById(Objects.requireNonNull(productId))
-                                .orElseThrow(() -> new RuntimeException("找不到商品，ID: " + productId));
+    @Transactional
+    public void removeFromWishlistByUserId(Long userId, Long productId) {
+        removeFromWishlist(findUserById(userId), findProduct(productId));
+    }
 
-                return wishlistRepository.existsByUserAndProduct(user, product);
-        }
+    public boolean isInWishlistByUserId(Long userId, Long productId) {
+        User user = userRepository.findById(Objects.requireNonNull(userId)).orElse(null);
+        if (user == null) return false;
+        Product product = productRepository.findById(Objects.requireNonNull(productId)).orElse(null);
+        if (product == null) return false;
+        return isInWishlist(user, product);
+    }
+
+    // ── 私有輔助方法 ────────────────────────────────────────────────
+
+    private User findUserByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("用戶", "username", username));
+    }
+
+    private User findUserById(Long userId) {
+        return userRepository.findById(Objects.requireNonNull(userId))
+                .orElseThrow(() -> new ResourceNotFoundException("用戶", userId));
+    }
+
+    private Product findProduct(Long productId) {
+        return productRepository.findById(Objects.requireNonNull(productId))
+                .orElseThrow(() -> new ResourceNotFoundException("商品", productId));
+    }
 }

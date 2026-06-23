@@ -7,11 +7,15 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -32,6 +36,10 @@ import jakarta.servlet.http.HttpServletRequest;
 public class LoggingAspect {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingAspect.class);
+
+    /** 用於將物件序列化為 JSON 字串 */
+    @Autowired
+    private ObjectMapper objectMapper;
 
     /** 超過此閾值的 Service 方法視為慢方法（毫秒） */
     private static final long SLOW_METHOD_THRESHOLD_MS = 500L;
@@ -78,12 +86,22 @@ public class LoggingAspect {
         String requestId = java.util.UUID.randomUUID().toString().substring(0, 8);
         MDC.put("requestId", requestId);
 
-        log.info("[API] 開始 | {} | 用戶: {}", requestInfo, currentUser);
+        // 格式化傳入參數為 JSON，方便記錄
+        Object[] args = joinPoint.getArgs();
+        String argsJson = (args != null && args.length > 0)
+                ? toJson(args)
+                : "[]";
+        log.info("[API] 開始 | {} | 用戶: {} | 參數: {}", requestInfo, currentUser, argsJson);
 
         try {
+            // 執行原始方法
             Object result = joinPoint.proceed();
+
+            // 記錄回傳結果（取出 ResponseEntity body）與耗時
             long duration = System.currentTimeMillis() - startTime;
-            log.info("[API] 完成 | {} | 耗時: {}ms | 用戶: {}", requestInfo, duration, currentUser);
+            Object body = (result instanceof ResponseEntity<?> re) ? re.getBody() : result;
+            log.info("[API] 完成 | {} | 耗時: {}ms | 用戶: {} | 回傳: {}",
+                    requestInfo, duration, currentUser, toJson(body));
             return result;
         } catch (Exception ex) {
             long duration = System.currentTimeMillis() - startTime;
@@ -113,6 +131,18 @@ public class LoggingAspect {
         }
 
         return result;
+    }
+
+    /**
+     * 將物件序列化為 JSON 字串；若失敗則退回 toString()
+     */
+    private String toJson(Object obj) {
+        if (obj == null) return "null";
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            return obj.toString();
+        }
     }
 
     /**

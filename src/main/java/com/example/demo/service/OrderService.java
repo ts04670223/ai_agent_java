@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.event.OrderCreatedEvent;
 import com.example.demo.event.OrderStatusChangedEvent;
+import com.example.demo.exception.BusinessException;
+import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.model.Cart;
 import com.example.demo.model.CartItem;
 import com.example.demo.model.Order;
@@ -48,12 +50,12 @@ public class OrderService {
     @Transactional
     public Order createOrderFromCart(Long userId, String shippingAddress, String phone, String note) {
         User user = userRepository.findById(Objects.requireNonNull(userId))
-                .orElseThrow(() -> new RuntimeException("找不到用戶，ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("用戶", userId));
 
         Cart cart = cartService.getCartByUserId(userId);
 
         if (cart.getItems().isEmpty()) {
-            throw new RuntimeException("購物車是空的");
+            throw new BusinessException("購物車是空的");
         }
 
         // 計算總金額並檢查庫存
@@ -63,7 +65,7 @@ public class OrderService {
 
             // 檢查庫存
             if (product.getStock() < cartItem.getQuantity()) {
-                throw new RuntimeException("商品 " + product.getName() + " 庫存不足");
+                throw new BusinessException("商品 " + product.getName() + " 庫存不足");
             }
 
             totalAmount = totalAmount.add(cartItem.getSubtotal());
@@ -134,7 +136,7 @@ public class OrderService {
     @Transactional
     public Order updateOrderStatus(Integer orderId, OrderStatus newStatus) {
         Order order = orderRepository.findById(Objects.requireNonNull(orderId))
-                .orElseThrow(() -> new RuntimeException("找不到訂單，ID: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("訂單", orderId));
 
         OrderStatus oldStatus = order.getStatus();
         order.setStatus(newStatus);
@@ -160,16 +162,16 @@ public class OrderService {
     @Transactional
     public Order cancelOrder(Integer orderId, Long userId) {
         Order order = orderRepository.findById(Objects.requireNonNull(orderId))
-                .orElseThrow(() -> new RuntimeException("找不到訂單，ID: " + orderId));
+                .orElseThrow(() -> new ResourceNotFoundException("訂單", orderId));
 
         // 檢查訂單是否屬於該用戶
         if (!order.getUser().getId().equals(userId)) {
-            throw new RuntimeException("無權限取消此訂單");
+            throw new BusinessException("無權限取消此訂單");
         }
 
         // 只有 PENDING 和 PROCESSING 狀態可以取消
         if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.PROCESSING) {
-            throw new RuntimeException("訂單狀態不允許取消");
+            throw new BusinessException("訂單狀態不允許取消");
         }
 
         // 恢復庫存

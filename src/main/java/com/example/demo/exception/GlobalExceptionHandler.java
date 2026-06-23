@@ -21,54 +21,31 @@ public class GlobalExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    /** 靜態資源找不到（404），不記 ERROR，直接回傳 404 */
+    /** 優化 #6：資源不存在，回傳 404（取代字串比對） */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Object> handleResourceNotFound(ResourceNotFoundException ex, WebRequest request) {
+        logger.warn("資源不存在: {}", ex.getMessage());
+        return buildResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    /** 優化 #6：業務邏輯錯誤（庫存不足、狀態不允許等），回傳 400 */
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Object> handleBusinessException(BusinessException ex, WebRequest request) {
+        logger.warn("業務邏輯錯誤: {}", ex.getMessage());
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /** 靜態資源找不到（404），不記 ERROR */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<Object> handleNoResourceFound(NoResourceFoundException ex, WebRequest request) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("message", "找不到資源: " + ex.getResourcePath());
-        return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Object> handleAllExceptions(Exception ex, WebRequest request) {
-        logger.error("發生未預期的錯誤: ", ex);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("message", "系統發生錯誤，請稍後再試");
-        body.put("error", ex.getMessage());
-
-        return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Object> handleRuntimeException(RuntimeException ex, WebRequest request) {
-        String msg = ex.getMessage();
-        logger.warn("執行時錯誤: {}", msg);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("message", msg);
-
-        // 資源不存在的例外回傳 404
-        if (msg != null && (msg.contains("找不到") || msg.contains("not found") || msg.contains("Not Found"))) {
-            return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
-        }
-
-        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+        return buildResponse("找不到資源: " + ex.getResourcePath(), HttpStatus.NOT_FOUND);
     }
 
     /** 查詢結果為空（Optional.get() 等）回傳 404 */
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<Object> handleNoSuchElement(NoSuchElementException ex, WebRequest request) {
         logger.warn("查無資源: {}", ex.getMessage());
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("message", "查無此資源");
-
-        return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
+        return buildResponse("查無此資源", HttpStatus.NOT_FOUND);
     }
 
     /** 驗證失敗（@Valid）回傳 400 並列出欄位錯誤 */
@@ -90,11 +67,31 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Object> handleAccessDenied(AccessDeniedException ex, WebRequest request) {
         logger.warn("存取被拒: {}", ex.getMessage());
+        return buildResponse("存取被拒，權限不足", HttpStatus.FORBIDDEN);
+    }
 
+    /** RuntimeException 兜底（不再用字串判斷 404） */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Object> handleRuntimeException(RuntimeException ex, WebRequest request) {
+        logger.warn("執行時錯誤: {}", ex.getMessage());
+        return buildResponse(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    /** 未預期錯誤 */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleAllExceptions(Exception ex, WebRequest request) {
+        logger.error("發生未預期的錯誤: ", ex);
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
-        body.put("message", "存取被拒，權限不足");
+        body.put("message", "系統發生錯誤，請稍後再試");
+        body.put("error", ex.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 
-        return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
+    private ResponseEntity<Object> buildResponse(String message, HttpStatus status) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("message", message);
+        return new ResponseEntity<>(body, status);
     }
 }
