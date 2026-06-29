@@ -72,6 +72,7 @@ EOF
     sudo apt-get update
     sudo apt-get install -y apt-transport-https ca-certificates curl
 
+    sudo mkdir -p /etc/apt/keyrings
     curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key \
       | sudo gpg --dearmor --yes --batch \
           -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
@@ -146,6 +147,10 @@ _k8s() {
       kubectl get pods -n kube-flannel | grep -q "Running" && { echo "Flannel 就緒"; break; } || sleep 5
     done
 
+    echo "安裝 local-path-provisioner（預設 StorageClass）..."
+    kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.26/deploy/local-path-storage.yaml
+    kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
     echo -e "${GREEN}K8s 叢集初始化完成！${NC}"
     kubectl get nodes -o wide
 }
@@ -215,6 +220,19 @@ _frontend() {
 
     echo "安裝並設定 Nginx..."
     sudo apt-get install -y nginx
+
+    # 自動產生自簽 SSL 憑證（WebAuthn/Passkeys 需要 HTTPS Secure Context）
+    if [ ! -f /etc/nginx/ssl/test6.test-cert.pem ]; then
+      sudo mkdir -p /etc/nginx/ssl
+      sudo openssl req -x509 -nodes -days 3650 \
+        -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/test6.test-key.pem \
+        -out /etc/nginx/ssl/test6.test-cert.pem \
+        -subj "/CN=test6.test/O=Dev/C=TW" \
+        -addext "subjectAltName=DNS:test6.test,IP:192.168.10.10"
+      echo "SSL 自簽憑證已產生"
+    fi
+
     sudo cp /vagrant/scripts/nginx/nginx-test6.conf /etc/nginx/sites-available/test6.test
     sudo ln -sf /etc/nginx/sites-available/test6.test /etc/nginx/sites-enabled/
     sudo rm -f /etc/nginx/sites-enabled/default
@@ -253,6 +271,8 @@ _ollama() {
     if which ollama &>/dev/null; then
       echo "✓ Ollama 已安裝: $(ollama --version)"
     else
+      echo "安裝 Ollama 前置依賴..."
+      sudo apt-get install -y zstd
       echo "安裝 Ollama..."
       if wget -qO /tmp/_ollama_install.sh https://ollama.com/install.sh 2>/dev/null; then
         sudo sh /tmp/_ollama_install.sh

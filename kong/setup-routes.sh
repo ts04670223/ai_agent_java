@@ -4,9 +4,8 @@
 # 用於將 API 請求路由到後端 Spring Boot 應用
 
 KONG_ADMIN_URL="http://localhost:30003"
-# App 直接在 VM 上以 mvn spring-boot:run 執行，不在 K8s Pod 內
-# 從 K8s Pod 內用 Node IP 192.168.10.10 連到 VM 上的 app
-APP_SERVICE_URL="http://192.168.10.10:8080"
+# App 部署在 K8s Pod 內，使用 K8s 內部 DNS 連線
+APP_SERVICE_URL="http://app:8080"
 
 echo "================================"
 echo "配置 Kong 路由"
@@ -18,9 +17,9 @@ echo "創建 Service: spring-boot-app"
 curl -i -X POST ${KONG_ADMIN_URL}/services \
   --data name=spring-boot-app \
   --data url=${APP_SERVICE_URL} \
-  --data connect_timeout=300000 \
-  --data write_timeout=300000 \
-  --data read_timeout=300000
+  --data connect_timeout=60000 \
+  --data write_timeout=360000 \
+  --data read_timeout=360000
 
 echo ""
 echo "--------------------------------"

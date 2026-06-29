@@ -142,7 +142,46 @@ EOF
     echo "╚════════════════════════════════════════════════╝"
 
     echo ""
-    echo "━━━ 步驟 1: 檢查 Flannel ━━━"
+    echo "━━━ 步驟 0: 修復 kubelet hostname-override ━━━"
+    # VM hostname 為 k8s-test-new，但 K8s 節點註冊為 k8s-master
+    # 確保 kubelet 使用正確的節點名稱
+    if ! sudo grep -q "hostname-override" /var/lib/kubelet/kubeadm-flags.env 2>/dev/null; then
+      echo "加入 --hostname-override=k8s-master..."
+      CURRENT_ARGS=$(sudo cat /var/lib/kubelet/kubeadm-flags.env | sed 's/KUBELET_KUBEADM_ARGS="//;s/"$//')
+      echo "KUBELET_KUBEADM_ARGS=\"--hostname-override=k8s-master ${CURRENT_ARGS}\"" \
+        | sudo tee /var/lib/kubelet/kubeadm-flags.env > /dev/null
+      sudo systemctl restart kubelet
+      echo -e "${GREEN}✓${NC} kubelet hostname-override 已修復"
+      sleep 10
+    else
+      echo -e "${GREEN}✓${NC} kubelet hostname-override 已存在"
+    fi
+
+    echo ""
+    echo "━━━ 步驟 1: 檢查 Flannel / subnet.env ━━━"
+    # /run 是 tmpfs，重啟後 subnet.env 消失，需主動建立
+    if [ ! -f /run/flannel/subnet.env ]; then
+      echo -e "${YELLOW}⚠${NC} subnet.env 缺失，建立中..."
+      if systemctl list-unit-files | grep -q flannel-subnet-env; then
+        sudo systemctl start flannel-subnet-env.service
+      else
+        sudo mkdir -p /run/flannel
+        printf "FLANNEL_NETWORK=10.244.0.0/16\nFLANNEL_SUBNET=10.244.0.1/24\nFLANNEL_MTU=1450\nFLANNEL_IPMASQ=true\n" \
+          | sudo tee /run/flannel/subnet.env > /dev/null
+      fi
+      sudo systemctl restart kubelet
+      echo -e "${GREEN}✓${NC} subnet.env 已建立並重啟 kubelet"
+      sleep 10
+    else
+      echo -e "${GREEN}✓${NC} subnet.env 存在"
+    fi
+
+    # 等待 Node Ready
+    echo "等待 Node Ready..."
+    kubectl wait --for=condition=Ready node/k8s-master --timeout=60s \
+      || { echo -e "${RED}✗ Node 仍為 NotReady${NC}"; kubectl describe node k8s-master | tail -10; exit 1; }
+    echo -e "${GREEN}✓${NC} Node k8s-master Ready"
+
     FLANNEL_STATUS=$(kubectl get pods -n kube-flannel \
       -o jsonpath='{.items[*].status.phase}' 2>/dev/null || echo "NotFound")
     if echo "$FLANNEL_STATUS" | grep -q "Running"; then
@@ -150,20 +189,14 @@ EOF
     else
       echo -e "${YELLOW}⚠${NC} Flannel 未就緒，等待啟動..."
       kubectl wait --for=condition=ready pod -l app=flannel \
-        -n kube-flannel --timeout=300s || {
+        -n kube-flannel --timeout=120s || {
         echo "嘗試重新安裝 Flannel..."
         kubectl delete -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml \
           --ignore-not-found=true
         sleep 5
         kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
-        kubectl wait --for=condition=ready pod -l app=flannel -n kube-flannel --timeout=300s
+        kubectl wait --for=condition=ready pod -l app=flannel -n kube-flannel --timeout=120s
       }
-    fi
-    if [ -f /run/flannel/subnet.env ]; then
-      echo -e "${GREEN}✓${NC} subnet.env 存在"
-    else
-      echo -e "${YELLOW}⚠${NC} subnet.env 缺失，等待 30 秒..."
-      sleep 30
     fi
 
     echo ""
@@ -177,7 +210,7 @@ EOF
     echo ""
     echo "━━━ 步驟 3: 檢查 Kong 資料庫 ━━━"
     kubectl wait --for=condition=ready pod -l io.kompose.service=kong-database \
-      --timeout=300s || { echo -e "${RED}✗ Kong DB 未就緒${NC}"; exit 1; }
+      --timeout=120s || { echo -e "${RED}✗ Kong DB 未就緒${NC}"; exit 1; }
     MIGRATION_STATUS=$(kubectl get jobs kong-migrations \
       -o jsonpath='{.status.succeeded}' 2>/dev/null || echo "0")
     if [ "$MIGRATION_STATUS" != "1" ]; then
@@ -199,7 +232,7 @@ EOF
       kubectl apply -f /vagrant/kong/kong-k8s.yaml
     fi
     kubectl wait --for=condition=ready pod -l io.kompose.service=kong \
-      --timeout=300s || { echo -e "${RED}✗ Kong 啟動失敗${NC}"; exit 1; }
+      --timeout=120s || { echo -e "${RED}✗ Kong 啟動失敗${NC}"; exit 1; }
     echo -e "${GREEN}✓${NC} Kong 已就緒"
 
     echo ""
